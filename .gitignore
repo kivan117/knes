@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+/knes.vcxproj.user
+/.vs/knes/v16
+/x64/Debug
