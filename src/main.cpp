@@ -1,10 +1,19 @@
 #include <SDL2/SDL.h>
 #include <iostream>
+#include "Logger.h"
 #include "Cpu.h"
 #include "Mmu.h"
 
 int main(int argc, char** argv)
 {
+	Logger::Init();
+
+	if (argc < 2)
+	{
+		LOG_ERROR("No rom file argument given.");
+		exit(-1);
+	}
+
 	//bool enabledGamepad = true;
 	//SDL_GameController* controller = NULL;
 
@@ -68,7 +77,15 @@ int main(int argc, char** argv)
 	SDL_RenderPresent(renderer);
 	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 240);
 
-
+	Mmu* mmu = new Mmu();
+	std::ifstream romFile;
+	romFile.open(argv[1], std::ios::binary | std::ios::in | std::ios::beg);
+	if (!romFile.good())
+	{
+		LOG_ERROR("Error opening file.");
+		exit(-1);
+	}
+	mmu->LoadCart(romFile);
 
 	while (!userQuit)
 	{

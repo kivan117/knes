@@ -20,12 +20,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Cpu.cpp" />
+    <ClCompile Include="src\Logger.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Mapper.cpp" />
+    <ClCompile Include="src\Mapper000.cpp" />
     <ClCompile Include="src\Mmu.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="inc\Cpu.h" />
+    <ClInclude Include="inc\Logger.h" />
+    <ClInclude Include="inc\Mapper.h" />
+    <ClInclude Include="inc\Mapper000.h" />
     <ClInclude Include="inc\Mmu.h" />
+    <ClInclude Include="inc\NESHeader.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
