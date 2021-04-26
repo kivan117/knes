@@ -5,7 +5,7 @@ Mmu::Mmu()
 {
 }
 
-uint8_t Mmu::ReadByte(uint16_t addr)
+uint8_t Mmu::CpuReadByte(uint16_t addr)
 {
 	if (addr < 0x2000)
 		return InternalRam[addr & 0x7FF];
@@ -29,7 +29,7 @@ uint8_t Mmu::ReadByte(uint16_t addr)
 	return uint8_t();
 }
 
-void Mmu::WriteByte(uint16_t addr, uint8_t val)
+void Mmu::CpuWriteByte(uint16_t addr, uint8_t val)
 {
 	if (addr < 0x2000)
 	{
@@ -59,15 +59,58 @@ void Mmu::WriteByte(uint16_t addr, uint8_t val)
 	return;
 }
 
-uint16_t Mmu::ReadWord(uint16_t addr)
+uint16_t Mmu::CpuReadWord(uint16_t addr)
 {
 	return ((uint16_t)(ReadByte(addr + 1) << 8) | ReadByte(addr));
 }
 
-void Mmu::WriteWord(uint16_t addr, uint16_t val)
+void Mmu::CpuWriteWord(uint16_t addr, uint16_t val)
 {
 	WriteByte(addr, (val & 0x0F));
 	WriteByte(addr + 1, (val & 0xF0) >> 8);
+}
+
+uint8_t Mmu::PpuReadByte(uint16_t addr)
+{
+	/*
+	$0000-$0FFF 	$1000 	Pattern table 0
+	$1000-$1FFF 	$1000 	Pattern table 1
+	$2000-$23FF 	$0400 	Nametable 0
+	$2400-$27FF 	$0400 	Nametable 1
+	$2800-$2BFF 	$0400 	Nametable 2
+	$2C00-$2FFF 	$0400 	Nametable 3
+	$3000-$3EFF 	$0F00 	Mirrors of $2000-$2EFF
+	$3F00-$3F1F 	$0020 	Palette RAM indexes
+	$3F20-$3FFF 	$00E0 	Mirrors of $3F00-$3F1F 
+
+	$0000-1FFF is normally mapped by the cartridge to a CHR-ROM or CHR-RAM, often with a bank switching mechanism.
+	$2000-2FFF is normally mapped to the 2kB NES internal VRAM, providing 2 nametables with a mirroring configuration controlled by the cartridge, but it can be partly or fully remapped to RAM on the cartridge, allowing up to 4 simultaneous nametables.
+	$3000-3EFF is usually a mirror of the 2kB region from $2000-2EFF. The PPU does not render from this address range, so this space has negligible utility.
+	$3F00-3FFF is not configurable, always mapped to the internal palette control.
+	*/
+
+	LOG_ERROR("Read from PPU bus. Unimplemented.");
+	exit(-1);
+	return uint8_t();
+}
+
+void Mmu::PpuWriteByte(uint16_t addr, uint8_t val)
+{
+	LOG_ERROR("Write to PPU bus. Unimplemented.");
+	exit(-1);
+}
+
+uint16_t Mmu::PpuReadWord(uint16_t addr)
+{
+	LOG_ERROR("Read from PPU bus. Unimplemented.");
+	exit(-1);
+	return uint16_t();
+}
+
+void Mmu::PpuWriteWord(uint16_t addr, uint16_t val)
+{
+	LOG_ERROR("Write to PPU bus. Unimplemented.");
+	exit(-1);
 }
 
 void Mmu::LoadCart(std::istream& inFile)

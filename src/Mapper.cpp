@@ -1,26 +1,48 @@
 #include "Mapper.h"
 #include "Logger.h"
 
-uint8_t Mapper::ReadByte(uint16_t addr) const
+uint8_t Mapper::CpuReadByte(uint16_t addr) const
 {
-	LOG_ERROR("Read with invalid default mapper: {}", addr);
+	LOG_ERROR("Cpu Read with invalid default mapper: {}", addr);
 	return uint8_t();
 }
 
-void Mapper::WriteByte(uint16_t addr, uint8_t val)
+void Mapper::CpuWriteByte(uint16_t addr, uint8_t val)
 {
-	LOG_ERROR("Write with invalid default mapper: {}", addr);
+	LOG_ERROR("Cpu Write with invalid default mapper: {}", addr);
 }
 
-uint16_t Mapper::ReadWord(uint16_t addr) const
+uint16_t Mapper::CpuReadWord(uint16_t addr) const
 {
-	LOG_ERROR("Read with invalid default mapper: {}", addr);
+	LOG_ERROR("Cpu Read with invalid default mapper: {}", addr);
 	return uint16_t();
 }
 
-void Mapper::WriteWord(uint16_t addr, uint16_t val)
+void Mapper::CpuWriteWord(uint16_t addr, uint16_t val)
 {
-	LOG_ERROR("Write with invalid default mapper: {}", addr);
+	LOG_ERROR("Cpu Write with invalid default mapper: {}", addr);
+}
+
+uint8_t Mapper::PpuReadByte(uint16_t addr) const
+{
+	LOG_ERROR("Ppu Read with invalid default mapper: {}", addr);
+	return uint8_t();
+}
+
+void Mapper::PpuWriteByte(uint16_t addr, uint8_t val)
+{
+	LOG_ERROR("Ppu Write with invalid default mapper: {}", addr);
+}
+
+uint16_t Mapper::PpuReadWord(uint16_t addr) const
+{
+	LOG_ERROR("Ppu Read with invalid default mapper: {}", addr);
+	return uint16_t();
+}
+
+void Mapper::PpuWriteWord(uint16_t addr, uint16_t val)
+{
+	LOG_ERROR("Ppu Write with invalid default mapper: {}", addr);
 }
 
 void Mapper::SetCartHeader(NESHeader& header)

@@ -9,10 +9,15 @@
 class Mapper
 {
 public:
-	virtual uint8_t ReadByte(uint16_t addr) const;
-	virtual void WriteByte(uint16_t addr, uint8_t val);
-	virtual uint16_t ReadWord(uint16_t addr) const;
-	virtual void WriteWord(uint16_t addr, uint16_t val);
+	virtual uint8_t CpuReadByte(uint16_t addr) const;
+	virtual void CpuWriteByte(uint16_t addr, uint8_t val);
+	virtual uint16_t CpuReadWord(uint16_t addr) const;
+	virtual void CpuWriteWord(uint16_t addr, uint16_t val);
+
+	virtual uint8_t PpuReadByte(uint16_t addr) const;
+	virtual void PpuWriteByte(uint16_t addr, uint8_t val);
+	virtual uint16_t PpuReadWord(uint16_t addr) const;
+	virtual void PpuWriteWord(uint16_t addr, uint16_t val);
 
 	void SetCartHeader(NESHeader& header);
 
