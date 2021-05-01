@@ -114,7 +114,7 @@ void Cpu::Abx()
         operand = mmu->CpuReadByte(workingAddr);
         workingAddr = properAddr;
         break;
-    default: //all cycles after 3
+    default: //all cycles after 4
         break;
     }
 }
@@ -319,18 +319,125 @@ void Cpu::LDA()
     ResetOpCycles();
 }
 
+void Cpu::STX()
+{
+    mmu->CpuWriteByte(workingAddr, Regs.X);
+    ResetOpCycles();
+}
+
+void Cpu::LDX()
+{
+    Regs.X = operand;
+    CalcNZFlags(Regs.X);
+    ResetOpCycles();
+}
+
+void Cpu::STY()
+{
+    mmu->CpuWriteByte(workingAddr, Regs.Y);
+    ResetOpCycles();
+}
+
+void Cpu::LDY()
+{
+    Regs.Y = operand;
+    CalcNZFlags(Regs.Y);
+    ResetOpCycles();
+}
+
 void Cpu::CMP()
 {
     uint8_t temp = Regs.A - operand;
     SetFlag(FLAG_Z, (temp == 0) ? 1 : 0);
     SetFlag(FLAG_N, ((temp >> 7) & 1));
     SetFlag(FLAG_C, (operand > Regs.A) ? 0 : 1);
+    ResetOpCycles();
+}
+
+void Cpu::CPX()
+{
+    uint8_t temp = Regs.X - operand;
+    SetFlag(FLAG_Z, (temp == 0) ? 1 : 0);
+    SetFlag(FLAG_N, ((temp >> 7) & 1));
+    SetFlag(FLAG_C, (operand > Regs.X) ? 0 : 1);
+    ResetOpCycles();
+}
+
+void Cpu::CPY()
+{
+    uint8_t temp = Regs.Y - operand;
+    SetFlag(FLAG_Z, (temp == 0) ? 1 : 0);
+    SetFlag(FLAG_N, ((temp >> 7) & 1));
+    SetFlag(FLAG_C, (operand > Regs.Y) ? 0 : 1);
+    ResetOpCycles();
 }
 
 void Cpu::SBC()
 {
-    operand ^= 0xFF;
+    operand = ~operand;
     ADC();
+}
+
+void Cpu::BIT()
+{
+    uint8_t temp = Regs.A & operand;
+    (temp == 0) ? SetFlag(FLAG_Z, 1) : SetFlag(FLAG_Z, 0);
+    temp = ((operand & 0x40) >> 6) & 1;
+    SetFlag(FLAG_V, temp);
+    temp = (operand & 0x80) >> 7;
+    SetFlag(FLAG_N, temp);
+
+    ResetOpCycles();
+}
+
+void ASLA()
+{
+    ResetOpCycles();
+}
+
+void ROLA()
+{
+    ResetOpCycles();
+}
+
+void LSRA()
+{
+    ResetOpCycles();
+}
+
+void RORA()
+{
+    ResetOpCycles();
+}
+
+void ASL()
+{
+    ResetOpCycles();
+}
+
+void ROL()
+{
+    ResetOpCycles();
+}
+
+void LSR()
+{
+    ResetOpCycles();
+}
+
+void ROR()
+{
+    ResetOpCycles();
+}
+
+void DEC()
+{
+    ResetOpCycles();
+}
+
+void INC()
+{
+    ResetOpCycles();
 }
 
 void Cpu::CalcNZFlags(uint8_t val)
@@ -346,23 +453,24 @@ uint8_t Cpu::Execute(uint8_t op)
     switch (op)
     {
     case(0x00): break; //BRK, imp        
-    case(0x10): break; //BPL, rel
+    case(0x10): Rel(Flags.negative == false); break; //BPL, rel
     case(0x20): break; //JSR, abs
-    case(0x30): break; //BMI, rel
+    case(0x30): Rel(Flags.negative == true); break; //BMI, rel
     case(0x40): break; //RTI, imp
-    case(0x50): break; //BVC, rel
+    case(0x50): Rel(Flags.overflow == false); break; //BVC, rel
     case(0x60): break; //RTS, imp
-    case(0x70): break; //BVS, rel
-    case(0x90): break; //BCC, rel
-    case(0xA0): break; //LDY, imm
-    case(0xB0): break; //BCS, rel
-    case(0xC0): break; //CPY, imm
-    case(0xD0): break; //BNE, rel
-    case(0xE0): break; //CPX, imm
-    case(0xF0): break; //BEQ, rel
-    case(0xA2): break; //LDX, imm
+    case(0x70): Rel(Flags.overflow == true); break; //BVS, rel
+    case(0x90): Rel(Flags.carry == false); break; //BCC, rel
+    case(0xA0): Imm(); LDY(); break; //LDY, imm
+    case(0xB0): Rel(Flags.carry == true); break; //BCS, rel
+    case(0xC0): Imm(); CPY(); break; //CPY, imm
+    case(0xD0): Rel(Flags.zero == false); break; //BNE, rel
+    case(0xE0): Imm(); CPX(); break; //CPX, imm
+    case(0xF0): Rel(Flags.zero == true); break; //BEQ, rel
+    case(0xA2): Imm(); LDX(); break; //LDX, imm
 
-    case(0x81): Idx(); if (opCycle == 6) { STA(); } break; //STA, idx 
+
+    case(0x81): Idx(); if (opCycle == 6) { STA(); } break;                                          //STA, idx 
     case(0x01): Idx(); if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); ORA(); } break; //ORA, idx    
     case(0x21): Idx(); if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); AND(); } break; //AND, idx    
     case(0x41): Idx(); if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); EOR(); } break; //EOR, idx    
@@ -371,7 +479,8 @@ uint8_t Cpu::Execute(uint8_t op)
     case(0xC1): Idx(); if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); CMP(); } break; //CMP, idx    
     case(0xE1): Idx(); if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); SBC(); } break; //SBC, idx
 
-    case(0x91): Idy(); if (opCycle == 6) { STA(); } break; //STA, idy
+
+    case(0x91): Idy(); if (opCycle == 6) { STA(); } break;                                                                                                    //STA, idy
     case(0x11): Idy(); if (opCycle == 5 && !crossedPageBoundary) { ORA(); } else if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); ORA(); } break; //ORA, idy
     case(0x31): Idy(); if (opCycle == 5 && !crossedPageBoundary) { AND(); } else if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); AND(); } break; //AND, idy
     case(0x51): Idy(); if (opCycle == 5 && !crossedPageBoundary) { EOR(); } else if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); EOR(); } break; //EOR, idy
@@ -380,68 +489,53 @@ uint8_t Cpu::Execute(uint8_t op)
     case(0xD1): Idy(); if (opCycle == 5 && !crossedPageBoundary) { CMP(); } else if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); CMP(); } break; //CMP, idy
     case(0xF1): Idy(); if (opCycle == 5 && !crossedPageBoundary) { SBC(); } else if (opCycle == 6) { operand = mmu->CpuReadByte(workingAddr); SBC(); } break; //SBC, idy
 
-    case(0x24): break; //BIT, zpg
-    case(0x84): break; //STY, zpg
-    case(0x94): break; //STY, zpx
-    case(0xA4): break; //LDY, zpg
-    case(0xB4): break; //LDY, zpx
-    case(0xC4): break; //CPY, zpg
-    case(0xE4): break; //CPX, zpg
+
+    case(0x85): Zpg(); if (opCycle == 3) { STA(); } break;                                          //STA, zpg
+    case(0x86): Zpg(); if (opCycle == 3) { STX(); } break;                                          //STX, zpg
+    case(0x84): Zpg(); if (opCycle == 3) { STY(); } break;                                          //STY, zpg
+    case(0x05): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); ORA(); } break; //ORA, zpg
+    case(0x25): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); AND(); } break; //AND, zpg
+    case(0x45): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); EOR(); } break; //EOR, zpg
+    case(0x65): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); ADC(); } break; //ADC, zpg
+    case(0xA5): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); LDA(); } break; //LDA, zpg
+    case(0xC5): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); CMP(); } break; //CMP, zpg
+    case(0xE5): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); SBC(); } break; //SBC, zpg
+    case(0xA6): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); LDX(); } break; //LDX, zpg
+    case(0xA4): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); LDY(); } break; //LDY, zpg
+    case(0x24): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); BIT(); } break; //BIT, zpg
+    case(0xC4): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); CPY(); } break; //CPY, zpg
+    case(0xE4): Zpg(); if (opCycle == 3) { operand = mmu->CpuReadByte(workingAddr); CPX(); } break; //CPX, zpg
 
 
-    case(0x05): break; //ORA, zpg
-    case(0x15): break; //ORA, zpx
-    case(0x25): break; //AND, zpg
-    case(0x35): break; //AND, zpx
-    case(0x45): break; //EOR, zpg
-    case(0x55): break; //EOR, zpx
-    case(0x65): break; //ADC, zpg
-    case(0x75): break; //ADC, zpx
-    case(0x85): break; //STA, zpg
-    case(0x95): break; //STA, zpx
-    case(0xA5): break; //LDA, zpg
-    case(0xB5): break; //LDA, zpx
-    case(0xC5): break; //CMP, zpg
-    case(0xD5): break; //CMP, zpx
-    case(0xE5): break; //SBC, zpg
-    case(0xF5): break; //SBC, zpx
+    case(0x95): Zpx(); if (opCycle == 4) { STA(); } break;                                          //STA, zpx
+    case(0x96): Zpy(); if (opCycle == 4) { STX(); } break;                                          //STX, zpy
+    case(0x94): Zpx(); if (opCycle == 4) { STY(); } break;                                          //STY, zpx
+    case(0x15): Zpx(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr); ORA(); } break; //ORA, zpx    
+    case(0x35): Zpx(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr); AND(); } break; //AND, zpx    
+    case(0x55): Zpx(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr); EOR(); } break; //EOR, zpx    
+    case(0x75): Zpx(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr); ADC(); } break; //ADC, zpx    
+    case(0xB5): Zpx(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr); LDA(); } break; //LDA, zpx    
+    case(0xD5): Zpx(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr); CMP(); } break; //CMP, zpx    
+    case(0xF5): Zpx(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr); SBC(); } break; //SBC, zpx
+    case(0xB6): Zpy(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr); LDX(); } break; //LDX, zpy
+    case(0xB4): Zpx(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr); LDY(); } break; //LDY, zpx
+
 
 
     case(0x06): break; //ASL, zpg
-    case(0x16): break; //ASL, zpx
     case(0x26): break; //ROL, zpg
-    case(0x36): break; //ROL, zpx
     case(0x46): break; //LSR, zpg
-    case(0x56): break; //LSR, zpx
-    case(0x66): break; //ROR, zpg
-    case(0x76): break; //ROR, zpx
-    case(0x86): break; //STX, zpg
-    case(0x96): break; //STX, zpy
-    case(0xA6): break; //LDX, zpg
-    case(0xB6): break; //LDX, zpy
+    case(0x66): break; //ROR, zpg    
     case(0xC6): break; //DEC, zpg
-    case(0xD6): break; //DEC, zpx
     case(0xE6): break; //INC, zpg
+
+
+    case(0x16): break; //ASL, zpx
+    case(0x36): break; //ROL, zpx
+    case(0x56): break; //LSR, zpx
+    case(0x76): break; //ROR, zpx    
+    case(0xD6): break; //DEC, zpx
     case(0xF6): break; //INC, zpx
-
-
-    case(0x08): break; //PHP, imp
-    case(0x18): break; //CLC, imp
-    case(0x28): break; //PLP, imp
-    case(0x38): break; //SEC, imp
-    case(0x48): break; //PHA, imp
-    case(0x58): break; //CLI, imp
-    case(0x68): break; //PLA, imp
-    case(0x78): break; //SEI, imp
-    case(0x88): break; //DEY, imp
-    case(0x98): break; //TYA, imp
-    case(0xA8): break; //TAY, imp
-    case(0xB8): break; //CLV, imp
-    case(0xC8): break; //INY, imp
-    case(0xD8): break; //CLD, imp
-    case(0xE8): break; //INX, imp
-    case(0xF8): break; //SED, imp
-
 
     case(0x09): Imm(); ORA(); break; //ORA, imm
     case(0x29): Imm(); AND(); break; //AND, imm
@@ -451,71 +545,89 @@ uint8_t Cpu::Execute(uint8_t op)
     case(0xC9): Imm(); CMP(); break; //CMP, imm
     case(0xE9): Imm(); SBC(); break; //SBC, imm
 
+    case(0x08): break; //PHP, imp
+    case(0x18): Imp(); SetFlag(FLAG_C, 0); ResetOpCycles(); break; //CLC, imp
+    case(0x28): break; //PLP, imp
+    case(0x38): Imp(); SetFlag(FLAG_C, 1); ResetOpCycles(); break; //SEC, imp
+    case(0x48): break; //PHA, imp
+    case(0x58): Imp(); SetFlag(FLAG_I, 0); ResetOpCycles(); break; //CLI, imp
+    case(0x68): break; //PLA, imp
+    case(0x78): Imp(); SetFlag(FLAG_I, 1); ResetOpCycles(); break; //SEI, imp
+    case(0x88): Imp(); Regs.Y--; CalcNZFlags(Regs.Y); ResetOpCycles(); break; //DEY, imp
+    case(0x98): Imp(); Regs.A = Regs.Y; CalcNZFlags(Regs.A); ResetOpCycles(); break; //TYA, imp
+    case(0xA8): Imp(); Regs.Y = Regs.A; CalcNZFlags(Regs.Y); ResetOpCycles(); break; //TAY, imp
+    case(0xB8): Imp(); SetFlag(FLAG_V, 0); ResetOpCycles(); break; //CLV, imp
+    case(0xC8): Imp(); Regs.Y++; CalcNZFlags(Regs.Y); ResetOpCycles(); break; //INY, imp
+    case(0xD8): Imp(); SetFlag(FLAG_D, 0); ResetOpCycles(); break; //CLD, imp
+    case(0xE8): Imp(); Regs.X++; CalcNZFlags(Regs.X); ResetOpCycles(); break; //INX, imp
+    case(0xF8): Imp(); SetFlag(FLAG_D, 1); ResetOpCycles(); break; //SED, imp
+
+    case(0x0A): Imp(); ASLA(); break; //ASL, imp(A)
+    case(0x2A): Imp(); ROLA(); break; //ROL, imp(A)    
+    case(0x4A): Imp(); LSRA(); break; //LSR, imp(A)    
+    case(0x6A): Imp(); RORA(); break; //ROR, imp(A)    
+    case(0x8A): Imp(); Regs.A = Regs.X; CalcNZFlags(Regs.A); ResetOpCycles(); break; //TXA, imp
+    case(0x9A): Imp(); Regs.S = Regs.X; ResetOpCycles(); break; //TXS, imp
+    case(0xAA): Imp(); Regs.X = Regs.A; CalcNZFlags(Regs.X); ResetOpCycles();  break; //TAX, imp
+    case(0xBA): Imp(); Regs.X = Regs.S; CalcNZFlags(Regs.X); ResetOpCycles();  break; //TSX, imp
+    case(0xCA): Imp(); Regs.X--; CalcNZFlags(Regs.X); ResetOpCycles(); break; //DEX, imp    
+    case(0xEA): NOP(); break; //NOP, imp
+    
+    case(0x4C): break; //JMP, abs
+    case(0x6C): break; //JMP, ind    
+
+    case(0x8D): Abs(); if (opCycle == 4) { STA(); } break;                                           //STA, abs
+    case(0x8E): Abs(); if (opCycle == 4) { STX(); } break;                                           //STX, abs
+    case(0x8C): Abs(); if (opCycle == 4) { STY(); } break;                                           //STY, abs
+    case(0x0D): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  ORA(); } break; //ORA, abs
+    case(0x2D): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  AND(); } break; //AND, abs
+    case(0x4D): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  EOR(); } break; //EOR, abs
+    case(0x6D): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  ADC(); } break; //ADC, abs    
+    case(0xAD): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  LDA(); } break; //LDA, abs
+    case(0xCD): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  CMP(); } break; //CMP, abs
+    case(0xED): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  SBC(); } break; //SBC, abs    
+    case(0xAE): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  LDX(); } break; //LDX, abs
+    case(0xAC): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  LDY(); } break; //LDY, abs
+    case(0xCC): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  CPY(); } break; //CPY, abs
+    case(0xEC): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  CPX(); } break; //CPX, abs
+    case(0x2C): Abs(); if (opCycle == 4) { operand = mmu->CpuReadByte(workingAddr);  BIT(); } break; //BIT, abs
+
+    case(0x9D): Abx(); if (opCycle == 5) { STA(); } break;                                                                                                    //STA, abx
+    case(0x1D): Abx(); if (opCycle == 4 && !crossedPageBoundary) { ORA(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); ORA(); } break; //ORA, abx
+    case(0x3D): Abx(); if (opCycle == 4 && !crossedPageBoundary) { AND(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); AND(); } break; //AND, abx
+    case(0x5D): Abx(); if (opCycle == 4 && !crossedPageBoundary) { EOR(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); EOR(); } break; //EOR, abx
+    case(0x7D): Abx(); if (opCycle == 4 && !crossedPageBoundary) { ADC(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); ADC(); } break; //ADC, abx
+    case(0xBD): Abx(); if (opCycle == 4 && !crossedPageBoundary) { LDA(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); LDA(); } break; //LDA, abx
+    case(0xDD): Abx(); if (opCycle == 4 && !crossedPageBoundary) { CMP(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); CMP(); } break; //CMP, abx
+    case(0xFD): Abx(); if (opCycle == 4 && !crossedPageBoundary) { SBC(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); SBC(); } break; //SBC, abx
+    case(0xBC): Abx(); if (opCycle == 4 && !crossedPageBoundary) { LDY(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); LDY(); } break; //LDY, abx
+     
+
+    case(0x99): Aby(); if (opCycle == 5) { STA(); } break;                                                                                                    //STA, aby 
     case(0x19): Aby(); if (opCycle == 4 && !crossedPageBoundary) { ORA(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); ORA(); } break; //ORA, aby    
     case(0x39): Aby(); if (opCycle == 4 && !crossedPageBoundary) { AND(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); AND(); } break; //AND, aby    
     case(0x59): Aby(); if (opCycle == 4 && !crossedPageBoundary) { EOR(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); EOR(); } break; //EOR, aby    
-    case(0x79): Aby(); if (opCycle == 4 && !crossedPageBoundary) { ADC(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); ADC(); } break; //ADC, aby
-    case(0x99): Aby(); if (opCycle == 5) { STA(); } break; //STA, aby    
+    case(0x79): Aby(); if (opCycle == 4 && !crossedPageBoundary) { ADC(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); ADC(); } break; //ADC, aby   
     case(0xB9): Aby(); if (opCycle == 4 && !crossedPageBoundary) { LDA(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); LDA(); } break; //LDA, aby    
     case(0xD9): Aby(); if (opCycle == 4 && !crossedPageBoundary) { CMP(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); CMP(); } break; //CMP, aby    
     case(0xF9): Aby(); if (opCycle == 4 && !crossedPageBoundary) { SBC(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); SBC(); } break; //SBC, aby
-
-
-    case(0x0A): break; //ASL, imp(A)
-    case(0x2A): break; //ROL, imp(A)    
-    case(0x4A): break; //LSR, imp(A)    
-    case(0x6A): break; //ROR, imp(A)    
-    case(0x8A): break; //TXA, imp
-    case(0x9A): break; //TXS, imp
-    case(0xAA): break; //TAX, imp
-    case(0xBA): break; //TSX, imp
-    case(0xCA): break; //DEX, imp    
-    case(0xEA): NOP(); break; //NOP
-
-    
-    case(0x2C): break; //BIT, abs
-    case(0x4C): break; //JMP, abs
-    case(0x6C): break; //JMP, ind
-    case(0x8C): break; //STY, abs
-    case(0xAC): break; //LDY, abs
-    case(0xBC): break; //LDY, abx
-    case(0xCC): break; //CPY, abs
-    case(0xEC): break; //CPX, abs
-
-
-    case(0x0D): break; //ORA, abs
-    case(0x1D): break; //ORA, abx
-    case(0x2D): break; //AND, abs
-    case(0x3D): break; //AND, abx
-    case(0x4D): break; //EOR, abs
-    case(0x5D): break; //EOR, abx
-    case(0x6D): break; //ADC, abs
-    case(0x7D): break; //ADC, abx
-    case(0x8D): break; //STA, abs
-    case(0x9D): break; //STA, abx
-    case(0xAD): break; //LDA, abs
-    case(0xBD): break; //LDA, abx
-    case(0xCD): break; //CMP, abs
-    case(0xDD): break; //CMP, abx
-    case(0xED): break; //SBC, abs
-    case(0xFD): break; //SBC, abx
-
+    case(0xBE): Aby(); if (opCycle == 4 && !crossedPageBoundary) { LDX(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); LDX(); } break; //LDX, aby
 
     case(0x0E): break; //ASL, abs
-    case(0x1E): break; //ASL, abx
     case(0x2E): break; //ROL, abs
-    case(0x3E): break; //ROL, abx
     case(0x4E): break; //LSR, abs
-    case(0x5E): break; //LSR, abx
     case(0x6E): break; //ROR, abs
-    case(0x7E): break; //ROR, abx
-    case(0x8E): break; //STX, abs
-    case(0xAE): break; //LDX, abs
-    case(0xBE): break; //LDX, aby
     case(0xCE): break; //DEC, abs
-    case(0xDE): break; //DEC, abx
     case(0xEE): break; //INC, abs
+    
+    
+    case(0x1E): break; //ASL, abx    
+    case(0x3E): break; //ROL, abx    
+    case(0x5E): break; //LSR, abx    
+    case(0x7E): break; //ROR, abx           
+    case(0xDE): break; //DEC, abx    
     case(0xFE): break; //INC, abx
+
 
     default: //illegal opcodes. halt, catch fire.
         LOG_ERROR("Invalid opcode: {}", op);

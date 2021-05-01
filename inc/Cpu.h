@@ -67,8 +67,27 @@ private:
 	void ADC();
 	void STA();
 	void LDA();
+	void STX();
+	void LDX();
+	void STY();
+	void LDY();
 	void CMP();
+	void CPX();
+	void CPY();
 	void SBC();
+	void BIT();
+
+	void ASLA();
+	void ROLA();
+	void LSRA();
+	void RORA();
+
+	void ASL();
+	void ROL();
+	void LSR();
+	void ROR();
+	void DEC();
+	void INC();
 
 	void CalcNZFlags(uint8_t val);
 
