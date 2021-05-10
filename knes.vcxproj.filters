@@ -59,5 +59,8 @@
     <ClInclude Include="inc\NESHeader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="inc\OpsDebugInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

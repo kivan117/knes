@@ -48,13 +48,13 @@ void Mapper000::CpuWriteByte(uint16_t addr, uint8_t val)
 
 uint16_t Mapper000::CpuReadWord(uint16_t addr) const
 {
-	return ((uint16_t)(ReadByte(addr + 1) << 8) | ReadByte(addr));
+	return ((uint16_t)(CpuReadByte(addr + 1) << 8) | CpuReadByte(addr));
 }
 
 void Mapper000::CpuWriteWord(uint16_t addr, uint16_t val)
 {
-	WriteByte(addr, (val & 0x0F));
-	WriteByte(addr + 1, (val & 0xF0) >> 8);
+	CpuWriteByte(addr, (val & 0x0F));
+	CpuWriteByte(addr + 1, (val & 0xF0) >> 8);
 }
 
 

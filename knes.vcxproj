@@ -33,6 +33,7 @@
     <ClInclude Include="inc\Mapper000.h" />
     <ClInclude Include="inc\Mmu.h" />
     <ClInclude Include="inc\NESHeader.h" />
+    <ClInclude Include="inc\OpsDebugInfo.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

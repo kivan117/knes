@@ -23,7 +23,7 @@ uint8_t Mmu::CpuReadByte(uint16_t addr)
 	}
 
 	if (addr > 0x401F)
-		return Cart->ReadByte(addr);
+		return Cart->CpuReadByte(addr);
 
 	LOG_ERROR("Reading byte from invalid addr: {}", addr);
 	return uint8_t();
@@ -51,7 +51,7 @@ void Mmu::CpuWriteByte(uint16_t addr, uint8_t val)
 
 	if (addr > 0x401F)
 	{
-		Cart->WriteByte(addr, val);
+		Cart->CpuWriteByte(addr, val);
 		return;
 	}
 
@@ -61,13 +61,13 @@ void Mmu::CpuWriteByte(uint16_t addr, uint8_t val)
 
 uint16_t Mmu::CpuReadWord(uint16_t addr)
 {
-	return ((uint16_t)(ReadByte(addr + 1) << 8) | ReadByte(addr));
+	return ((uint16_t)(CpuReadByte(addr + 1) << 8) | CpuReadByte(addr));
 }
 
 void Mmu::CpuWriteWord(uint16_t addr, uint16_t val)
 {
-	WriteByte(addr, (val & 0x0F));
-	WriteByte(addr + 1, (val & 0xF0) >> 8);
+	CpuWriteByte(addr, (val & 0x0F));
+	CpuWriteByte(addr + 1, (val & 0xF0) >> 8);
 }
 
 uint8_t Mmu::PpuReadByte(uint16_t addr)

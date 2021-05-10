@@ -5,7 +5,7 @@ Cpu::Cpu(Mmu* _mmu) : mmu(_mmu)
     Regs.A  = 0x00;
     Regs.X  = 0x00;
     Regs.Y  = 0x00;
-    Regs.P  = 0x34;
+    Regs.P  = 0x24;
     Regs.S  = 0xFD;
     Regs.PC = 0xC000; //for auto nestest. normal reset vector is 0xFFFC
 }
@@ -17,6 +17,8 @@ void Cpu::Tick()
     {
         //fetch
         op = mmu->CpuReadByte(Regs.PC++); //op cycle 1
+        //PrintDebugString();
+        CheckDebugStatus(debugLogLine++);
         opCycle = 2;
     }
     else
@@ -27,9 +29,86 @@ void Cpu::Tick()
     totalCycles++;
 }
 
+void Cpu::PrintDebugString()
+{
+    std::stringstream stream;
+    stream  << std::setfill('0') << std::setw(4)
+            << std::hex << (Regs.PC - 1) << "\t";
+    for (int i = 0; i < OPCODE_INFO_TABLE[op].length; i++)
+    {
+        stream  << std::setfill('0') << std::setw(2)
+                << std::hex << mmu->CpuReadByte(Regs.PC - 1 + i) << " ";
+    }
+    stream << "\t";
+    stream << "A:" << std::setfill('0') << std::setw(2)
+        << std::hex << (Regs.A) << " ";
+    stream << "X:" << std::setfill('0') << std::setw(2)
+        << std::hex << (Regs.X) << " ";
+    stream << "Y:" << std::setfill('0') << std::setw(2)
+        << std::hex << (Regs.Y) << " ";
+    stream << "P:" << std::setfill('0') << std::setw(2)
+        << std::hex << (Regs.P) << " ";
+    stream << "SP:" << std::setfill('0') << std::setw(2)
+        << std::hex << (Regs.S);
+    LOG_TRACE(stream.str().c_str());
+}
+
+void Cpu::CheckDebugStatus(unsigned int which)
+{
+    if (Regs.PC - 1 != ARR_PC[which])
+    {
+        LOG_ERROR("nestest failure on line {}: PC", which);
+        LOG_ERROR("Expected: {}", ARR_PC[which]);
+        LOG_ERROR("Actual:   {}", Regs.PC - 1);
+        exit(-2);
+    }
+    if (op != ARR_OPCODE[which])
+    {
+        LOG_ERROR("nestest failure on line {}: OP", which);
+        LOG_ERROR("Expected: {}", ARR_OPCODE[which]);
+        LOG_ERROR("Actual:   {}", op);
+        exit(-2);
+    }
+    if (Regs.A != ARR_A[which])
+    {
+        LOG_ERROR("nestest failure on line {}: A", which);
+        LOG_ERROR("Expected: {}", ARR_A[which]);
+        LOG_ERROR("Actual:   {}", Regs.A);
+        exit(-2);
+    }
+    if (Regs.X != ARR_X[which])
+    {
+        LOG_ERROR("nestest failure on line {}: X", which);
+        LOG_ERROR("Expected: {}", ARR_X[which]);
+        LOG_ERROR("Actual:   {}", Regs.X);
+        exit(-2);
+    }
+    if (Regs.Y != ARR_Y[which])
+    {
+        LOG_ERROR("nestest failure on line {}: Y", which);
+        LOG_ERROR("Expected: {}", ARR_Y[which]);
+        LOG_ERROR("Actual:   {}", Regs.Y);
+        exit(-2);
+    }
+    if (Regs.P != ARR_P[which])
+    {
+        LOG_ERROR("nestest failure on line {}: P", which);
+        LOG_ERROR("Expected: {}", ARR_P[which]);
+        LOG_ERROR("Actual:   {}", Regs.P);
+        exit(-2);
+    }
+    if (Regs.S != ARR_SP[which])
+    {
+        LOG_ERROR("nestest failure on line {}: SP", which);
+        LOG_ERROR("Expected: {}", ARR_SP[which]);
+        LOG_ERROR("Actual:   {}", Regs.S);
+        exit(-2);
+    }
+}
+
 void Cpu::SetFlag(FLAG_CODE flagCode, uint8_t val)
 {
-    switch (flagcode)
+    switch (flagCode)
     {
     case(FLAG_C):
         Flags.carry = (val != 0) ? true : false;
@@ -52,6 +131,8 @@ void Cpu::SetFlag(FLAG_CODE flagCode, uint8_t val)
     case(FLAG_N):
         Flags.negative = (val != 0) ? true : false;
         break;
+    case(FLAG_HIGH):
+        break;
     default:
         LOG_ERROR("Attempt to set improper flag: {}", flagCode);
         exit(-1);
@@ -64,6 +145,25 @@ void Cpu::SetFlag(FLAG_CODE flagCode, uint8_t val)
     return;
 }
 
+void Cpu::SyncFlagsFromReg()
+{
+    uint8_t val = (Regs.P & (1 << FLAG_N)) >> FLAG_N;
+    SetFlag(FLAG_N, val);
+    val = (Regs.P & (1 << FLAG_V)) >> FLAG_V;
+    SetFlag(FLAG_V, val);
+    SetFlag(FLAG_HIGH, 1);
+    val = (Regs.P & (1 << FLAG_B)) >> FLAG_B;
+    SetFlag(FLAG_B, val);
+    val = (Regs.P & (1 << FLAG_D)) >> FLAG_D;
+    SetFlag(FLAG_D, val);
+    val = (Regs.P & (1 << FLAG_I)) >> FLAG_I;
+    SetFlag(FLAG_I, val);
+    val = (Regs.P & (1 << FLAG_Z)) >> FLAG_Z;
+    SetFlag(FLAG_Z, val);
+    val = (Regs.P & (1 << FLAG_C)) >> FLAG_C;
+    SetFlag(FLAG_C, val);
+}
+
 void Cpu::ResetOpCycles()
 {
     opCycle = -2;
@@ -71,7 +171,7 @@ void Cpu::ResetOpCycles()
 
 void Cpu::Imp()
 {
-    if(opCycle == 2)
+    if (opCycle == 2)
         uint8_t dummyRead = mmu->CpuReadByte(Regs.PC);
 }
 
@@ -83,6 +183,7 @@ void Cpu::Imm()
 
 void Cpu::Abs()
 {
+    addrModeCycleOffset = 4;
     switch (opCycle)
     {
     case(2):
@@ -98,6 +199,7 @@ void Cpu::Abs()
 
 void Cpu::Abx()
 {
+    addrModeCycleOffset = 5;
     switch (opCycle)
     {
     case(2):
@@ -144,21 +246,24 @@ void Cpu::Aby()
 
 void Cpu::Zpg()
 {
+    addrModeCycleOffset = 3;
     if (opCycle == 2)
         workingAddr = mmu->CpuReadByte(Regs.PC++);
 }
 
 void Cpu::Zpx()
 {
+    addrModeCycleOffset = 4;
     switch (opCycle)
     {
     case(2):
         workingAddr = mmu->CpuReadByte(Regs.PC++);
         break;
-    case(3):
+    case(3): {
         uint8_t dummyRead = mmu->CpuReadByte(workingAddr);
         workingAddr = (workingAddr + Regs.X) & 0xFF;
-        break;
+        break; 
+    }
     default:
         break;
     }
@@ -166,15 +271,17 @@ void Cpu::Zpx()
 
 void Cpu::Zpy()
 {
+    addrModeCycleOffset = 4;
     switch (opCycle)
     {
     case(2):
         workingAddr = mmu->CpuReadByte(Regs.PC++);
         break;
-    case(3):
+    case(3): {
         uint8_t dummyRead = mmu->CpuReadByte(workingAddr);
         workingAddr = (workingAddr + Regs.Y) & 0xFF;
         break;
+    }
     default:
         break;
     }
@@ -190,7 +297,7 @@ void Cpu::Rel(bool condition)
         if (!condition)
             ResetOpCycles();
         break;
-    case(3):
+    case(3): {
         uint8_t dummyRead = mmu->CpuReadByte(Regs.PC);
         workingAddr = Regs.PC;
         properAddr = workingAddr + branchOffset;
@@ -201,11 +308,13 @@ void Cpu::Rel(bool condition)
         else
             crossedPageBoundary = true;
         break;
-    case(4):
-        dummyRead = mmu->CpuReadByte(Regs.PC);
+    }
+    case(4): {
+        uint8_t dummyRead = mmu->CpuReadByte(Regs.PC);
         Regs.PC = (workingAddr > properAddr) ? Regs.PC - 0x100 : Regs.PC + 0x100;
         ResetOpCycles();
         break;
+    }
     default:
         break;
     }
@@ -219,10 +328,11 @@ void Cpu::Idx()
     case(2):
         pointer = mmu->CpuReadByte(Regs.PC++);
         break;
-    case(3):
-        uint8_t dummyRead = mmu->CpuReadByte(pointer);
-        pointer += Regs.X;
-        break;
+    case(3): {
+           uint8_t dummyRead = mmu->CpuReadByte(pointer);
+           pointer += Regs.X;
+           break;
+    }
     case(4):
         workingAddr = mmu->CpuReadByte(pointer);
         break;
@@ -390,54 +500,423 @@ void Cpu::BIT()
     ResetOpCycles();
 }
 
-void ASLA()
+void Cpu::ASLA()
 {
+    SetFlag(FLAG_C, (Regs.A & 0x80) >> 7);
+    Regs.A <<= 1;
+    CalcNZFlags(Regs.A);
     ResetOpCycles();
 }
 
-void ROLA()
+void Cpu::ROLA()
 {
+    uint8_t tempCarry = (Regs.A & 0x80) >> 7;
+    Regs.A <<= 1;
+    Regs.A |= (Flags.carry ? 1 : 0);
+    SetFlag(FLAG_C, tempCarry);
+    CalcNZFlags(Regs.A);
     ResetOpCycles();
 }
 
-void LSRA()
+void Cpu::LSRA()
 {
+    SetFlag(FLAG_C, Regs.A & 1);
+    Regs.A >>= 1;
+    CalcNZFlags(Regs.A);
     ResetOpCycles();
 }
 
-void RORA()
+void Cpu::RORA()
 {
+    uint8_t tempCarry = Regs.A & 1;
+    Regs.A >>= 1;
+    Regs.A |= (Flags.carry ? 1 : 0) << 7;
+    SetFlag(FLAG_C, tempCarry);
+    CalcNZFlags(Regs.A);
     ResetOpCycles();
 }
 
-void ASL()
+void Cpu::ASL()
 {
-    ResetOpCycles();
+    if (opCycle == addrModeCycleOffset)
+    {
+        operand = mmu->CpuReadByte(workingAddr);
+    }
+    else if (opCycle == addrModeCycleOffset + 1)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+        SetFlag(FLAG_C, (operand & 0x80) >> 7);
+        operand <<= 1;
+        CalcNZFlags(operand);
+    }
+    else if (opCycle == addrModeCycleOffset + 2)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+        ResetOpCycles();
+    }    
 }
 
-void ROL()
+void Cpu::ROL()
 {
-    ResetOpCycles();
+    if (opCycle == addrModeCycleOffset)
+    {
+        operand = mmu->CpuReadByte(workingAddr);
+    }
+    else if (opCycle == addrModeCycleOffset + 1)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+
+        uint8_t tempCarry = (operand & 0x80) >> 7;
+        operand <<= 1;
+        operand |= (Flags.carry ? 1 : 0);
+        SetFlag(FLAG_C, tempCarry);
+        CalcNZFlags(operand);
+
+    }
+    else if (opCycle == addrModeCycleOffset + 2)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+        ResetOpCycles();
+    }
 }
 
-void LSR()
+void Cpu::LSR()
 {
-    ResetOpCycles();
+    if (opCycle == addrModeCycleOffset)
+    {
+        operand = mmu->CpuReadByte(workingAddr);
+    }
+    else if (opCycle == addrModeCycleOffset + 1)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+
+        SetFlag(FLAG_C, operand & 1);
+        operand >>= 1;
+        CalcNZFlags(operand);
+    }
+    else if (opCycle == addrModeCycleOffset + 2)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+        ResetOpCycles();
+    }
 }
 
-void ROR()
+void Cpu::ROR()
 {
-    ResetOpCycles();
+    if (opCycle == addrModeCycleOffset)
+    {
+        operand = mmu->CpuReadByte(workingAddr);
+    }
+    else if (opCycle == addrModeCycleOffset + 1)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+
+        uint8_t tempCarry = operand & 1;
+        operand >>= 1;
+        operand |= (Flags.carry ? 1 : 0) << 7;
+        SetFlag(FLAG_C, tempCarry);
+        CalcNZFlags(operand);
+
+    }
+    else if (opCycle == addrModeCycleOffset + 2)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+        ResetOpCycles();
+    }
 }
 
-void DEC()
+void Cpu::DEC()
 {
-    ResetOpCycles();
+    if (opCycle == addrModeCycleOffset)
+    {
+        operand = mmu->CpuReadByte(workingAddr);
+    }
+    else if (opCycle == addrModeCycleOffset + 1)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+
+        operand -= 1;
+        CalcNZFlags(operand);
+
+    }
+    else if (opCycle == addrModeCycleOffset + 2)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+        ResetOpCycles();
+    }
 }
 
-void INC()
+void Cpu::INC()
 {
-    ResetOpCycles();
+    if (opCycle == addrModeCycleOffset)
+    {
+        operand = mmu->CpuReadByte(workingAddr);
+    }
+    else if (opCycle == addrModeCycleOffset + 1)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+
+        operand += 1;
+        CalcNZFlags(operand);
+
+    }
+    else if (opCycle == addrModeCycleOffset + 2)
+    {
+        mmu->CpuWriteByte(workingAddr, operand);
+        ResetOpCycles();
+    }
+}
+
+void Cpu::JMPABS()
+{
+    switch (opCycle)
+    {
+    case(2):
+        workingAddr = mmu->CpuReadByte(Regs.PC++);
+        break;
+    case(3):
+        workingAddr |= (mmu->CpuReadByte(Regs.PC) << 8);
+        Regs.PC = workingAddr;
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
+}
+
+void Cpu::JMPIND()
+{
+    static uint16_t pointer{ 0 };
+    switch (opCycle)
+    {
+    case(2):
+        pointer = mmu->CpuReadByte(Regs.PC++);
+        break;
+    case(3):
+        pointer |= mmu->CpuReadByte(Regs.PC++) << 8;
+        break;
+    case(4):
+        workingAddr = mmu->CpuReadByte(pointer);
+        break;
+    case(5):
+        workingAddr |= mmu->CpuReadByte((pointer & 0xFF00) | ((pointer + 1) & 0xFF)) << 8;
+        Regs.PC = workingAddr;
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
+}
+
+void Cpu::PHA()
+{
+    switch (opCycle)
+    {
+    case(2): {
+        uint8_t dummyRead = mmu->CpuReadByte(Regs.PC);
+        break;
+    }
+    case(3):
+        mmu->CpuWriteByte(Regs.S + 0x0100, Regs.A);
+        Regs.S--;
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
+}
+
+void Cpu::PLA()
+{
+    static uint8_t dummyRead{ 0 };
+    switch (opCycle)
+    {
+    case(2):
+        dummyRead = mmu->CpuReadByte(Regs.PC);
+        break;
+    case(3):
+        dummyRead = mmu->CpuReadByte(Regs.S + 0x0100);
+        Regs.S++;
+        break;
+    case(4):
+        Regs.A = mmu->CpuReadByte(Regs.S + 0x0100);
+        CalcNZFlags(Regs.A);
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
+}
+
+void Cpu::PHP()
+{
+    switch (opCycle)
+    {
+    case(2): {
+        uint8_t dummyRead = mmu->CpuReadByte(Regs.PC);
+        break;
+    }
+    case(3):
+        mmu->CpuWriteByte(Regs.S + 0x0100, Regs.P | 0x30);
+        Regs.S--;
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
+}
+
+void Cpu::PLP()
+{
+    static uint8_t dummyRead{ 0 };
+    switch (opCycle)
+    {
+    case(2):
+        dummyRead = mmu->CpuReadByte(Regs.PC);
+        break;
+    case(3):
+        dummyRead = mmu->CpuReadByte(Regs.S + 0x0100);
+        Regs.S++;
+        break;
+    case(4):
+        Regs.P &= 0x30;
+        Regs.P |= (mmu->CpuReadByte(Regs.S + 0x0100) & (~0x30));
+        SyncFlagsFromReg();
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
+}
+
+void Cpu::BRK()
+{
+    static uint8_t dummyRead{ 0 };
+    static uint8_t tempVal{ 0 };
+    switch (opCycle)
+    {
+    case(2):
+        dummyRead = mmu->CpuReadByte(Regs.PC++);
+        break;
+    case(3): //push pch
+        tempVal = (Regs.PC & 0xFF00) >> 8;
+        mmu->CpuWriteByte(Regs.S + 0x0100, tempVal);
+        Regs.S--;
+        break;
+    case(4): //push pcl
+        tempVal = (Regs.PC & 0xFF);
+        mmu->CpuWriteByte(Regs.S + 0x0100, tempVal);
+        Regs.S--;
+        break;
+    case(5): //push p (with B set)
+        tempVal = Regs.P | (1 << FLAG_B);
+        mmu->CpuWriteByte(Regs.S + 0x0100, tempVal);
+        Regs.S--;
+        break;
+    case(6):
+        Regs.PC = (Regs.PC & 0xFF00) | mmu->CpuReadByte(0xFFFE);
+        break;
+    case(7):
+        Regs.PC = (Regs.PC & 0xFF) | (mmu->CpuReadByte(0xFFFF) << 8);
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
+}
+
+void Cpu::RTI()
+{
+    static uint8_t dummyRead{ 0 };
+    switch (opCycle)
+    {
+    case(2):
+        dummyRead = mmu->CpuReadByte(Regs.PC);
+        break;
+    case(3):
+        dummyRead = mmu->CpuReadByte(Regs.S + 0x0100);
+        Regs.S++;
+        break;
+    case(4):
+        Regs.P &= 0x30;
+        Regs.P |= (mmu->CpuReadByte(Regs.S + 0x0100)&(~0x30));
+        SyncFlagsFromReg();
+        Regs.S++;
+        break;
+    case(5):
+        workingAddr = mmu->CpuReadByte(Regs.S + 0x0100);
+        Regs.PC = (Regs.PC & 0xFF00) | (workingAddr);
+        Regs.S++;
+        break;
+    case(6):
+        workingAddr |= mmu->CpuReadByte(Regs.S + 0x0100) << 8;
+        Regs.PC = workingAddr;
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
+}
+
+void Cpu::JSR()
+{
+    static uint8_t pclow{ 0 };
+    static uint8_t tempVal{ 0 };
+    switch (opCycle)
+    {
+    case(2):
+        pclow = mmu->CpuReadByte(Regs.PC++);
+        break;
+    case(3):
+        mmu->CpuReadByte(Regs.S + 0x0100);
+        break;
+    case(4): //push pch
+        tempVal = (Regs.PC & 0xFF00) >> 8;
+        mmu->CpuWriteByte(Regs.S + 0x0100, tempVal);
+        Regs.S--;
+        break;
+    case(5): //push pcl
+        tempVal = (Regs.PC & 0xFF);
+        mmu->CpuWriteByte(Regs.S + 0x0100, tempVal);
+        Regs.S--;
+        break;
+    case(6):
+        Regs.PC = pclow | (mmu->CpuReadByte(Regs.PC) << 8);
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
+}
+
+void Cpu::RTS()
+{
+    static uint8_t dummyRead{ 0 };
+    switch (opCycle)
+    {
+    case(2):
+        dummyRead = mmu->CpuReadByte(Regs.PC);
+        break;
+    case(3):
+        dummyRead = mmu->CpuReadByte(Regs.S + 0x0100);
+        Regs.S++;
+        break;
+    case(4):
+        workingAddr = mmu->CpuReadByte(Regs.S + 0x0100);
+        Regs.PC = (Regs.PC & 0xFF00) | (workingAddr);
+        Regs.S++;
+        break;
+    case(5):
+        workingAddr |= mmu->CpuReadByte(Regs.S + 0x0100) << 8;
+        Regs.PC = workingAddr;
+        break;
+    case(6):
+        dummyRead = mmu->CpuReadByte(Regs.PC++);
+        ResetOpCycles();
+        break;
+    default:
+        break;
+    }
 }
 
 void Cpu::CalcNZFlags(uint8_t val)
@@ -452,13 +931,13 @@ uint8_t Cpu::Execute(uint8_t op)
 
     switch (op)
     {
-    case(0x00): break; //BRK, imp        
+    case(0x00): BRK(); break; //BRK, imp        
     case(0x10): Rel(Flags.negative == false); break; //BPL, rel
-    case(0x20): break; //JSR, abs
+    case(0x20): JSR(); break; //JSR, abs
     case(0x30): Rel(Flags.negative == true); break; //BMI, rel
-    case(0x40): break; //RTI, imp
+    case(0x40): RTI(); break; //RTI, imp
     case(0x50): Rel(Flags.overflow == false); break; //BVC, rel
-    case(0x60): break; //RTS, imp
+    case(0x60): RTS(); break; //RTS, imp
     case(0x70): Rel(Flags.overflow == true); break; //BVS, rel
     case(0x90): Rel(Flags.carry == false); break; //BCC, rel
     case(0xA0): Imm(); LDY(); break; //LDY, imm
@@ -522,20 +1001,20 @@ uint8_t Cpu::Execute(uint8_t op)
 
 
 
-    case(0x06): break; //ASL, zpg
-    case(0x26): break; //ROL, zpg
-    case(0x46): break; //LSR, zpg
-    case(0x66): break; //ROR, zpg    
-    case(0xC6): break; //DEC, zpg
-    case(0xE6): break; //INC, zpg
+    case(0x06): Zpg(); ASL(); break; //ASL, zpg
+    case(0x26): Zpg(); ROL(); break; //ROL, zpg
+    case(0x46): Zpg(); LSR(); break; //LSR, zpg
+    case(0x66): Zpg(); ROR(); break; //ROR, zpg    
+    case(0xC6): Zpg(); DEC(); break; //DEC, zpg
+    case(0xE6): Zpg(); INC(); break; //INC, zpg
 
 
-    case(0x16): break; //ASL, zpx
-    case(0x36): break; //ROL, zpx
-    case(0x56): break; //LSR, zpx
-    case(0x76): break; //ROR, zpx    
-    case(0xD6): break; //DEC, zpx
-    case(0xF6): break; //INC, zpx
+    case(0x16): Zpx(); ASL(); break; //ASL, zpx
+    case(0x36): Zpx(); ROL(); break; //ROL, zpx
+    case(0x56): Zpx(); LSR(); break; //LSR, zpx
+    case(0x76): Zpx(); ROR(); break; //ROR, zpx    
+    case(0xD6): Zpx(); DEC(); break; //DEC, zpx
+    case(0xF6): Zpx(); INC(); break; //INC, zpx
 
     case(0x09): Imm(); ORA(); break; //ORA, imm
     case(0x29): Imm(); AND(); break; //AND, imm
@@ -545,13 +1024,13 @@ uint8_t Cpu::Execute(uint8_t op)
     case(0xC9): Imm(); CMP(); break; //CMP, imm
     case(0xE9): Imm(); SBC(); break; //SBC, imm
 
-    case(0x08): break; //PHP, imp
+    case(0x08): PHP(); break; //PHP, imp
     case(0x18): Imp(); SetFlag(FLAG_C, 0); ResetOpCycles(); break; //CLC, imp
-    case(0x28): break; //PLP, imp
+    case(0x28): PLP(); break; //PLP, imp
     case(0x38): Imp(); SetFlag(FLAG_C, 1); ResetOpCycles(); break; //SEC, imp
-    case(0x48): break; //PHA, imp
+    case(0x48): PHA(); break; //PHA, imp
     case(0x58): Imp(); SetFlag(FLAG_I, 0); ResetOpCycles(); break; //CLI, imp
-    case(0x68): break; //PLA, imp
+    case(0x68): PLA(); break; //PLA, imp
     case(0x78): Imp(); SetFlag(FLAG_I, 1); ResetOpCycles(); break; //SEI, imp
     case(0x88): Imp(); Regs.Y--; CalcNZFlags(Regs.Y); ResetOpCycles(); break; //DEY, imp
     case(0x98): Imp(); Regs.A = Regs.Y; CalcNZFlags(Regs.A); ResetOpCycles(); break; //TYA, imp
@@ -573,8 +1052,8 @@ uint8_t Cpu::Execute(uint8_t op)
     case(0xCA): Imp(); Regs.X--; CalcNZFlags(Regs.X); ResetOpCycles(); break; //DEX, imp    
     case(0xEA): NOP(); break; //NOP, imp
     
-    case(0x4C): break; //JMP, abs
-    case(0x6C): break; //JMP, ind    
+    case(0x4C): JMPABS(); break; //JMP, abs
+    case(0x6C): JMPIND(); break; //JMP, ind    
 
     case(0x8D): Abs(); if (opCycle == 4) { STA(); } break;                                           //STA, abs
     case(0x8E): Abs(); if (opCycle == 4) { STX(); } break;                                           //STX, abs
@@ -613,20 +1092,20 @@ uint8_t Cpu::Execute(uint8_t op)
     case(0xF9): Aby(); if (opCycle == 4 && !crossedPageBoundary) { SBC(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); SBC(); } break; //SBC, aby
     case(0xBE): Aby(); if (opCycle == 4 && !crossedPageBoundary) { LDX(); } else if (opCycle == 5) { operand = mmu->CpuReadByte(workingAddr); LDX(); } break; //LDX, aby
 
-    case(0x0E): break; //ASL, abs
-    case(0x2E): break; //ROL, abs
-    case(0x4E): break; //LSR, abs
-    case(0x6E): break; //ROR, abs
-    case(0xCE): break; //DEC, abs
-    case(0xEE): break; //INC, abs
+    case(0x0E): Abs(); ASL(); break; //ASL, abs
+    case(0x2E): Abs(); ROL(); break; //ROL, abs
+    case(0x4E): Abs(); LSR(); break; //LSR, abs
+    case(0x6E): Abs(); ROR(); break; //ROR, abs
+    case(0xCE): Abs(); DEC(); break; //DEC, abs
+    case(0xEE): Abs(); INC(); break; //INC, abs
     
     
-    case(0x1E): break; //ASL, abx    
-    case(0x3E): break; //ROL, abx    
-    case(0x5E): break; //LSR, abx    
-    case(0x7E): break; //ROR, abx           
-    case(0xDE): break; //DEC, abx    
-    case(0xFE): break; //INC, abx
+    case(0x1E): Abx(); ASL(); break; //ASL, abx    
+    case(0x3E): Abx(); ROL(); break; //ROL, abx    
+    case(0x5E): Abx(); LSR(); break; //LSR, abx    
+    case(0x7E): Abx(); ROR(); break; //ROR, abx           
+    case(0xDE): Abx(); DEC(); break; //DEC, abx    
+    case(0xFE): Abx(); INC(); break; //INC, abx
 
 
     default: //illegal opcodes. halt, catch fire.

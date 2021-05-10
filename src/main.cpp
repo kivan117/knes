@@ -21,7 +21,7 @@ int main(int argc, char** argv)
 
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 	{
-		std::cout << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
+		LOG_ERROR("SDL could not initialize! SDL_Error: {}", SDL_GetError());
 		return -1;
 	}
 	//if (SDL_Init(SDL_INIT_AUDIO) < 0)
@@ -87,8 +87,13 @@ int main(int argc, char** argv)
 	}
 	mmu->LoadCart(romFile);
 
+	Cpu cpu(mmu);
+
 	while (!userQuit)
 	{
+
+		cpu.Tick();
+
 		while (SDL_PollEvent(&e))
 		{
 			switch (e.type)

@@ -2,6 +2,10 @@
 #include <cstdint>
 #include "Mmu.h"
 #include "Logger.h"
+#include "OpsDebugInfo.h"
+
+#include <sstream>
+#include <iomanip>
 
 class Cpu
 {
@@ -12,7 +16,8 @@ private:
 	Mmu* mmu{ nullptr };
 
 	uint64_t totalCycles{ 0 };
-	int8_t opCycle{ 0 };
+	int8_t opCycle{ -2 };
+	uint8_t addrModeCycleOffset{ 0 };
 	uint8_t op{ 0 };
 	uint8_t immVal{ 0 };
 	uint8_t operand{ 0 };
@@ -20,6 +25,8 @@ private:
 	uint16_t workingAddr{ 0 };
 	uint16_t properAddr{ 0 };
 	bool crossedPageBoundary{ false };
+
+	unsigned int debugLogLine{ 0 };
 
 	struct registers {
 		uint8_t   A;	// Accumulator
@@ -44,7 +51,11 @@ private:
 
 	uint8_t Execute(uint8_t op);
 
+	void PrintDebugString();
+	void CheckDebugStatus(unsigned int which);
+
 	void SetFlag(FLAG_CODE flagCode, uint8_t val);
+	void SyncFlagsFromReg();
 
 	void ResetOpCycles();
 
@@ -88,6 +99,21 @@ private:
 	void ROR();
 	void DEC();
 	void INC();
+
+	void JMPABS();
+	void JMPIND();
+
+	void PHA();
+	void PLA();
+
+	void PHP();
+	void PLP();
+
+	void BRK();
+	void RTI();
+
+	void JSR();
+	void RTS();
 
 	void CalcNZFlags(uint8_t val);
 
