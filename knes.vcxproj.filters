@@ -39,6 +39,9 @@
     <ClCompile Include="src\Mapper000.cpp">
       <Filter>Source Files\Mappers</Filter>
     </ClCompile>
+    <ClCompile Include="src\MasterClock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="inc\Cpu.h">
@@ -59,7 +62,10 @@
     <ClInclude Include="inc\NESHeader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="inc\OpsDebugInfo.h">
+    <ClInclude Include="inc\MasterClock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Stopwatch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

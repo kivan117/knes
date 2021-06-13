@@ -7,7 +7,7 @@ Cpu::Cpu(Mmu* _mmu) : mmu(_mmu)
     Regs.Y  = 0x00;
     Regs.P  = 0x24;
     Regs.S  = 0xFD;
-    Regs.PC = 0xC000; //for auto nestest. normal reset vector is 0xFFFC
+    Regs.PC = mmu->CpuReadWord(0xFFFC); //normal reset vector is 0xFFFC
 }
 
 void Cpu::Tick()
@@ -18,7 +18,6 @@ void Cpu::Tick()
         //fetch
         op = mmu->CpuReadByte(Regs.PC++); //op cycle 1
         //PrintDebugString();
-        CheckDebugStatus(debugLogLine++);
         opCycle = 2;
     }
     else
@@ -26,84 +25,26 @@ void Cpu::Tick()
         //decode-execute
         Execute(op);
     }
-    totalCycles++;
+    //totalCycles++;
 }
 
 void Cpu::PrintDebugString()
 {
     std::stringstream stream;
-    stream  << std::setfill('0') << std::setw(4)
-            << std::hex << (Regs.PC - 1) << "\t";
-    for (int i = 0; i < OPCODE_INFO_TABLE[op].length; i++)
-    {
-        stream  << std::setfill('0') << std::setw(2)
-                << std::hex << mmu->CpuReadByte(Regs.PC - 1 + i) << " ";
-    }
+    stream  << std::setfill('0') << std::setw(4) << std::uppercase
+            << std::hex << (unsigned)(Regs.PC - 1) << "\t";
     stream << "\t";
-    stream << "A:" << std::setfill('0') << std::setw(2)
-        << std::hex << (Regs.A) << " ";
-    stream << "X:" << std::setfill('0') << std::setw(2)
-        << std::hex << (Regs.X) << " ";
-    stream << "Y:" << std::setfill('0') << std::setw(2)
-        << std::hex << (Regs.Y) << " ";
-    stream << "P:" << std::setfill('0') << std::setw(2)
-        << std::hex << (Regs.P) << " ";
-    stream << "SP:" << std::setfill('0') << std::setw(2)
-        << std::hex << (Regs.S);
+    stream << "A:" << std::setfill('0') << std::setw(2) << std::uppercase
+        << std::hex << (unsigned)(Regs.A) << " ";
+    stream << "X:" << std::setfill('0') << std::setw(2) << std::uppercase
+        << std::hex << (unsigned)(Regs.X) << " ";
+    stream << "Y:" << std::setfill('0') << std::setw(2) << std::uppercase
+        << std::hex << (unsigned)(Regs.Y) << " ";
+    stream << "P:" << std::setfill('0') << std::setw(2) << std::uppercase
+        << std::hex << (unsigned)(Regs.P) << " ";
+    stream << "SP:" << std::setfill('0') << std::setw(2) << std::uppercase
+        << std::hex << (unsigned)(Regs.S);
     LOG_TRACE(stream.str().c_str());
-}
-
-void Cpu::CheckDebugStatus(unsigned int which)
-{
-    if (Regs.PC - 1 != ARR_PC[which])
-    {
-        LOG_ERROR("nestest failure on line {}: PC", which);
-        LOG_ERROR("Expected: {}", ARR_PC[which]);
-        LOG_ERROR("Actual:   {}", Regs.PC - 1);
-        exit(-2);
-    }
-    if (op != ARR_OPCODE[which])
-    {
-        LOG_ERROR("nestest failure on line {}: OP", which);
-        LOG_ERROR("Expected: {}", ARR_OPCODE[which]);
-        LOG_ERROR("Actual:   {}", op);
-        exit(-2);
-    }
-    if (Regs.A != ARR_A[which])
-    {
-        LOG_ERROR("nestest failure on line {}: A", which);
-        LOG_ERROR("Expected: {}", ARR_A[which]);
-        LOG_ERROR("Actual:   {}", Regs.A);
-        exit(-2);
-    }
-    if (Regs.X != ARR_X[which])
-    {
-        LOG_ERROR("nestest failure on line {}: X", which);
-        LOG_ERROR("Expected: {}", ARR_X[which]);
-        LOG_ERROR("Actual:   {}", Regs.X);
-        exit(-2);
-    }
-    if (Regs.Y != ARR_Y[which])
-    {
-        LOG_ERROR("nestest failure on line {}: Y", which);
-        LOG_ERROR("Expected: {}", ARR_Y[which]);
-        LOG_ERROR("Actual:   {}", Regs.Y);
-        exit(-2);
-    }
-    if (Regs.P != ARR_P[which])
-    {
-        LOG_ERROR("nestest failure on line {}: P", which);
-        LOG_ERROR("Expected: {}", ARR_P[which]);
-        LOG_ERROR("Actual:   {}", Regs.P);
-        exit(-2);
-    }
-    if (Regs.S != ARR_SP[which])
-    {
-        LOG_ERROR("nestest failure on line {}: SP", which);
-        LOG_ERROR("Expected: {}", ARR_SP[which]);
-        LOG_ERROR("Actual:   {}", Regs.S);
-        exit(-2);
-    }
 }
 
 void Cpu::SetFlag(FLAG_CODE flagCode, uint8_t val)
@@ -334,10 +275,10 @@ void Cpu::Idx()
            break;
     }
     case(4):
-        workingAddr = mmu->CpuReadByte(pointer);
+        workingAddr = mmu->CpuReadByte(pointer++);
         break;
     case(5):
-        workingAddr |= (mmu->CpuReadByte(pointer+1) << 8);
+        workingAddr |= ((uint16_t)mmu->CpuReadByte(pointer) << 8);
         break;
     default:
         break;
@@ -357,9 +298,7 @@ void Cpu::Idy()
         pointer = mmu->CpuReadByte(immVal++);
         break;
     case(4):
-        pointer |= (mmu->CpuReadByte(immVal) << 8);
-
-        workingAddr = pointer;
+        workingAddr = (uint16_t)pointer | ((uint16_t)mmu->CpuReadByte(immVal) << 8);
         properAddr = workingAddr + Regs.Y;
         workingAddr = (workingAddr & 0xFF00) | (((workingAddr & 0x00FF) + Regs.Y) & 0x00FF);
         if (workingAddr != properAddr)
@@ -810,14 +749,17 @@ void Cpu::BRK()
         break;
     case(5): //push p (with B set)
         tempVal = Regs.P | (1 << FLAG_B);
+        SetFlag(FLAG_I, 1);
         mmu->CpuWriteByte(Regs.S + 0x0100, tempVal);
         Regs.S--;
         break;
     case(6):
-        Regs.PC = (Regs.PC & 0xFF00) | mmu->CpuReadByte(0xFFFE);
+        Regs.PC &= 0xFF00;
+        Regs.PC |= mmu->CpuReadByte(0xFFFE);
         break;
     case(7):
-        Regs.PC = (Regs.PC & 0xFF) | (mmu->CpuReadByte(0xFFFF) << 8);
+        Regs.PC &= 0x00FF;
+        Regs.PC |= ((uint16_t)mmu->CpuReadByte(0xFFFF) << 8);
         ResetOpCycles();
         break;
     default:
@@ -1110,7 +1052,9 @@ uint8_t Cpu::Execute(uint8_t op)
 
     default: //illegal opcodes. halt, catch fire.
         LOG_ERROR("Invalid opcode: {}", op);
+        PrintDebugString();
         exit(-1);
+        break;
     }
 
     opCycle++;

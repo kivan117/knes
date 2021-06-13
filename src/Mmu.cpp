@@ -12,13 +12,13 @@ uint8_t Mmu::CpuReadByte(uint16_t addr)
 
 	if (addr >= 0x2000 && addr <= 0x3FFF)
 	{
-		LOG_INFO("Reading byte from PPU reg: {}", addr);
+		LOG_TRACE("Reading byte from PPU reg: {}", addr);
 		return 0xFF;
 	}
 
 	if (addr >= 0x4000 && addr <= 0x401F)
 	{
-		LOG_INFO("Reading byte from IO reg: {}", addr);
+		LOG_TRACE("Reading byte from IO reg: {}", addr);
 		return 0xFF;
 	}
 
@@ -39,13 +39,35 @@ void Mmu::CpuWriteByte(uint16_t addr, uint8_t val)
 
 	if (addr >= 0x2000 && addr <= 0x3FFF)
 	{
-		LOG_INFO("Writing byte to PPU reg: {}", addr);
+		LOG_TRACE("Writing byte to PPU reg: {}", addr);
 		return;
 	}
 
 	if (addr >= 0x4000 && addr <= 0x401F)
 	{
-		LOG_INFO("Writing byte to IO reg: {}", addr);
+		LOG_TRACE("Writing byte to IO reg: {}", addr);
+		return;
+	}
+
+	if (addr > 0x6000)
+	{
+		Cart->CpuWriteByte(addr, val);
+		//blargg test printing
+		//if(addr == 0x6000)
+		//	LOG_DEBUG("Status: {:X}", (unsigned)CpuReadByte(0x6000));
+		//else
+		//{
+		//	static std::string output{ "" };
+		//	output.clear();
+		//	for (int i = 0x6004; i < 0x6100; i++)
+		//	{
+		//		unsigned char letter = CpuReadByte(i);
+		//		if (letter == '\0')
+		//			break;
+		//		output += letter;
+		//	}
+		//	LOG_DEBUG("{}", output.c_str());
+		//}
 		return;
 	}
 

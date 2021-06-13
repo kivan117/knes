@@ -1,12 +1,21 @@
 #include <SDL2/SDL.h>
 #include <iostream>
+#include <string>
+#include "Stopwatch.h"
 #include "Logger.h"
 #include "Cpu.h"
 #include "Mmu.h"
+#include "MasterClock.h"
 
 int main(int argc, char** argv)
 {
 	Logger::Init();
+
+	stopwatch::Stopwatch watch;
+	stopwatch::Stopwatch title_timer;
+	uint64_t frame_mus, average_frame_mus = 1;
+	uint64_t running_frame_times[60] = { 0 };
+	uint8_t frame_time_index = 0;
 
 	if (argc < 2)
 	{
@@ -67,15 +76,17 @@ int main(int argc, char** argv)
 	SDL_Window* window;
 
 	SDL_Renderer* renderer;
-
-	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 	window = SDL_CreateWindow("knes", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 480, SDL_WINDOW_OPENGL);
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	SDL_GL_SetSwapInterval(0);
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	SDL_GL_SetSwapInterval(1);
 	SDL_SetRenderDrawColor(renderer, 0xA0, 0xA0, 0xA0, 0xFF);
 	SDL_RenderClear(renderer);
 	SDL_RenderPresent(renderer);
 	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 240);
+
+	SDL_RendererInfo info;
+	SDL_GetRendererInfo(renderer, &info);
 
 	Mmu* mmu = new Mmu();
 	std::ifstream romFile;
@@ -87,12 +98,18 @@ int main(int argc, char** argv)
 	}
 	mmu->LoadCart(romFile);
 
-	Cpu cpu(mmu);
+	Cpu* cpu = new Cpu(mmu);
+
+	MasterClock* clock = new MasterClock(cpu);
 
 	while (!userQuit)
 	{
+		while (!clock->Tick()) {}
+		
+		SDL_RenderClear(renderer);
+		SDL_RenderPresent(renderer); //just using vsync to limit run speed for now.
 
-		cpu.Tick();
+		frame_mus = watch.elapsed<stopwatch::mus>();
 
 		while (SDL_PollEvent(&e))
 		{
@@ -107,6 +124,30 @@ int main(int argc, char** argv)
 				break;
 			}
 		}
+
+		running_frame_times[frame_time_index] = frame_mus;
+		frame_time_index = (frame_time_index + 1) % 60;
+		if (title_timer.elapsed<stopwatch::ms>() > 200)
+		{
+
+			title_timer.start();
+			average_frame_mus = 0;
+			for (int i = 0; i < 60; i++)
+				average_frame_mus += running_frame_times[i];
+			average_frame_mus = average_frame_mus / 60;
+			static double fps;
+			fps = (1000000.0 / (double)average_frame_mus);
+			//titlestream = "";
+			//titlestream.str(std::string());
+			//titlestream.precision(4);
+			//titlestream << "NES    FPS: ";
+			//titlestream << fps;
+			static std::string title;
+			title = "NES    FPS: " + std::to_string(fps);
+			SDL_SetWindowTitle(window, title.c_str());
+
+		}
+		watch.start();
 	}
 
 	return 0;

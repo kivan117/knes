@@ -24,6 +24,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Mapper.cpp" />
     <ClCompile Include="src\Mapper000.cpp" />
+    <ClCompile Include="src\MasterClock.cpp" />
     <ClCompile Include="src\Mmu.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -31,9 +32,10 @@
     <ClInclude Include="inc\Logger.h" />
     <ClInclude Include="inc\Mapper.h" />
     <ClInclude Include="inc\Mapper000.h" />
+    <ClInclude Include="inc\MasterClock.h" />
     <ClInclude Include="inc\Mmu.h" />
     <ClInclude Include="inc\NESHeader.h" />
-    <ClInclude Include="inc\OpsDebugInfo.h" />
+    <ClInclude Include="inc\Stopwatch.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

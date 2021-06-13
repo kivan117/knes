@@ -31,5 +31,8 @@ protected:
 	
 	NESHeader CartHeader;
 
+	uint8_t prgRomBanks{ 1 };
+	uint8_t prgRamBanks{ 0 };
+
 };
 

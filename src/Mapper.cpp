@@ -66,6 +66,7 @@ void Mapper::LoadGame(std::istream& inFile, NESHeader& header)
 	else
 		inFile.seekg(16, std::ios::beg);
 
+	prgRomBanks = header.prgRomBanks;
 	PRG_ROM.resize(header.prgRomBanks);
 
 	for (int n = 0; n < PRG_ROM.size(); n++)
@@ -80,6 +81,7 @@ void Mapper::LoadGame(std::istream& inFile, NESHeader& header)
 		inFile.read((char*)CHR_ROM[n].data(), 0x2000);
 	}
 
+	prgRamBanks = header.prgRamBanks;
 	if(header.prgRamBanks > 0)
 		PRG_RAM.resize(0x1000);
 

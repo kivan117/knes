@@ -15,5 +15,5 @@ void Logger::Init()
 	auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs/knes_log", 1048576 * 5, 3, false);
 	s_Logger = std::make_shared<spdlog::logger>("kNES", file_sink);
 	s_Logger->sinks().push_back(console_sink);
-	s_Logger->set_level(spdlog::level::trace);
+	s_Logger->set_level(spdlog::level::debug);
 }

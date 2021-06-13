@@ -2,7 +2,6 @@
 #include <cstdint>
 #include "Mmu.h"
 #include "Logger.h"
-#include "OpsDebugInfo.h"
 
 #include <sstream>
 #include <iomanip>
@@ -52,7 +51,6 @@ private:
 	uint8_t Execute(uint8_t op);
 
 	void PrintDebugString();
-	void CheckDebugStatus(unsigned int which);
 
 	void SetFlag(FLAG_CODE flagCode, uint8_t val);
 	void SyncFlagsFromReg();
